@@ -1,3 +1,6 @@
-Flask
 pyTelegramBotAPI
+requests
+schedule
+Flask
 gunicorn
+
