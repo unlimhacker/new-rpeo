@@ -14,15 +14,16 @@ app = Flask(__name__)
 
 # ---- Function to fetch TON price ----
 def get_ton_price():
-    url = "https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd"
     try:
+        url = "https://api.binance.com/api/v3/ticker/price?symbol=TONUSDT"
         r = requests.get(url, timeout=10)
         r.raise_for_status()
         data = r.json()
-        price = data["the-open-network"]["usd"]
-        return f"💎 TON price: ${price}"
+        price = float(data["price"])
+        return f"💎 TON price: ${price:.2f}"
     except Exception as e:
         return f"⚠️ Error fetching price: {e}"
+
 
 # ---- Send to channel ----
 def send_price():
