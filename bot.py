@@ -6,7 +6,7 @@ from flask import Flask, request
 # CONFIG
 # =========================
 TOKEN = "8034673353:AAGPFeh1cXlWllpQGDKJpBUUv1baBaAekxw"
-APP_URL = "https://instabot-2-gu4t.onrender.com"
+APP_URL = "https://new-rpeo.onrender.com"
 TELEGRAM_API = f"https://api.telegram.org/bot{TOKEN}"
 
 app = Flask(__name__)
