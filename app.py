@@ -1,29 +1,40 @@
-from flask import Flask, request
+import os
+import time
+import requests
 import telebot
+import schedule
 
-TOKEN = "8261351761:AAES_aRQ50v4SqUuAkkbqcRT9612Ngm_vLg"
-bot = telebot.TeleBot(TOKEN, threaded=False)
+# ===============================
+# CONFIG
+# ===============================
+TOKEN = os.getenv("BOT_TOKEN", "8261351761:AAES_aRQ50v4SqUuAkkbqcRT9612Ngm_vLg")
+CHANNEL_ID = os.getenv("-1002654232777", "@tonovoi")  # example: "@mychannel"
 
-app = Flask(__name__)
+bot = telebot.TeleBot(TOKEN)
 
-@app.route("/", methods=["GET"])
-def home():
-    return "🤖 Simple Bot is running!"
+# Function to fetch TON price
+def get_ton_price():
+    try:
+        url = "https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd"
+        res = requests.get(url).json()
+        price = res["the-open-network"]["usd"]
+        return f"💎 TON Price: ${price:.2f}"
+    except Exception as e:
+        return f"⚠️ Error fetching price: {e}"
 
-@app.route(f"/{TOKEN}", methods=["POST"])
-def webhook():
-    update = request.get_json(force=True)
-    if update:
-        bot.process_new_updates([telebot.types.Update.de_json(update)])
-    return "OK", 200
+# Function to send TON price to channel
+def send_price():
+    price = get_ton_price()
+    bot.send_message(CHANNEL_ID, price)
 
-@bot.message_handler(commands=["start"])
-def start(message):
-    bot.reply_to(message, "👋 Hello! I am alive!")
+# Schedule task every minute
+schedule.every(1).minutes.do(send_price)
 
-@bot.message_handler(func=lambda m: True)
-def echo(message):
-    bot.reply_to(message, f"✅ You said: {message.text}")
+print("🤖 TON Price Bot is running...")
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+# ===============================
+# MAIN LOOP
+# ===============================
+while True:
+    schedule.run_pending()
+    time.sleep(1)
