@@ -5,7 +5,7 @@ import requests
 import os
 
 API_TOKEN = "8261351761:AAES_aRQ50v4SqUuAkkbqcRT9612Ngm_vLg"
-WEBHOOK_URL = "https://instabot-2-gu4t.onrender.com/"  # your Render URL
+WEBHOOK_URL = "https://https://new-rpeo.onrender.com/"  # your Render URL
 bot = telebot.TeleBot(API_TOKEN)
 app = Flask(__name__)
 
@@ -15,7 +15,12 @@ def get_ton_price():
         r = requests.get(url, timeout=10)
         r.raise_for_status()
         data = r.json()
-        price = data["the-open-network"]["usd"]
+        # Debug print to check structure
+        print("CoinGecko response:", data)
+        # Access safely
+        price = data.get("the-open-network", {}).get("usd")
+        if price is None:
+            return "⚠️ Couldn't fetch TON price."
         return f"💎 TON price: ${price:.2f}"
     except Exception as e:
         return f"⚠️ Error fetching price: {e}"
@@ -42,4 +47,3 @@ def set_webhook():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
-
