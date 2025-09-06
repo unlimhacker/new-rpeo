@@ -1,61 +1,63 @@
 import os
+import time
 import requests
 import telebot
 from flask import Flask, request
-import threading
 import schedule
-import time
+import threading
 
-TOKEN = os.getenv("BOT_TOKEN", "8261351761:AAES_aRQ50v4SqUuAkkbqcRT9612Ngm_vLg")
-CHANNEL_ID = os.getenv("CHANNEL_ID", "-1002654232777")  # replace with your channel id
+BOT_TOKEN = os.getenv("BOT_TOKEN") or "8261351761:AAES_aRQ50v4SqUuAkkbqcRT9612Ngm_vLg"
+CHANNEL_ID = os.getenv("CHANNEL_ID") or "-1002654232777"  # replace with your channel id
 
-bot = telebot.TeleBot(TOKEN)
+bot = telebot.TeleBot(BOT_TOKEN)
 app = Flask(__name__)
 
-# Get TON price
+# ---- Function to fetch TON price ----
 def get_ton_price():
+    url = "https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd"
     try:
-        url = "https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd"
-        r = requests.get(url).json()
-        return f"💎 TON price: ${r['the-open-network']['usd']}"
+        r = requests.get(url, timeout=10)
+        r.raise_for_status()
+        data = r.json()
+        price = data["the-open-network"]["usd"]
+        return f"💎 TON price: ${price}"
     except Exception as e:
-        return f"Error getting price: {e}"
+        return f"⚠️ Error fetching price: {e}"
 
-# Send price to channel
+# ---- Send to channel ----
 def send_price():
     price = get_ton_price()
     try:
         bot.send_message(CHANNEL_ID, price)
     except Exception as e:
-        print(f"Failed to send price: {e}")
+        print("Send error:", e)
 
-# Handle /price command
-@bot.message_handler(commands=['price'])
-def price_command(message):
-    bot.reply_to(message, get_ton_price())
+# ---- Schedule every minute ----
+schedule.every(1).minutes.do(send_price)
 
-# Flask route for webhook
-@app.route(f"/{TOKEN}", methods=["POST"])
-def webhook():
-    update = request.get_json()
-    if update:
-        bot.process_new_updates([telebot.types.Update.de_json(update)])
-    return "OK", 200
-
-@app.route("/", methods=["GET"])
-def index():
-    return "🤖 TON Price Bot is running!", 200
-
-# Scheduler loop (runs in background thread)
-def run_scheduler():
-    schedule.every(1).minutes.do(send_price)
+def run_schedule():
     while True:
         schedule.run_pending()
         time.sleep(1)
 
-if __name__ == "__main__":
-    # Start background scheduler
-    threading.Thread(target=run_scheduler, daemon=True).start()
+threading.Thread(target=run_schedule, daemon=True).start()
 
-    # Start Flask
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+# ---- Telegram webhook ----
+@app.route(f"/{BOT_TOKEN}", methods=["POST"])
+def webhook():
+    update = request.stream.read().decode("utf-8")
+    bot.process_new_updates([telebot.types.Update.de_json(update)])
+    return "ok", 200
+
+@app.route("/")
+def index():
+    return "🤖 TON Bot Running!", 200
+
+# ---- Command ----
+@bot.message_handler(commands=["price"])
+def price_cmd(message):
+    bot.reply_to(message, get_ton_price())
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
+
