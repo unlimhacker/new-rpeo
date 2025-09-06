@@ -1,29 +1,19 @@
 # app.py
 from flask import Flask, request
 import telebot
-import requests
 import os
 
 API_TOKEN = "8261351761:AAES_aRQ50v4SqUuAkkbqcRT9612Ngm_vLg"
-WEBHOOK_URL = "https://https://new-rpeo.onrender.com/"  # your Render URL
+WEBHOOK_URL = "https://new-rpeo.onrender.com/"  # your Render URL
+
 bot = telebot.TeleBot(API_TOKEN)
 app = Flask(__name__)
 
-def get_ton_price():
-    try:
-        url = "https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd"
-        r = requests.get(url, timeout=10)
-        r.raise_for_status()
-        data = r.json()
-        # Debug print to check structure
-        print("CoinGecko response:", data)
-        # Access safely
-        price = data.get("the-open-network", {}).get("usd")
-        if price is None:
-            return "⚠️ Couldn't fetch TON price."
-        return f"💎 TON price: ${price:.2f}"
-    except Exception as e:
-        return f"⚠️ Error fetching price: {e}"
+# Handle /start command
+@bot.message_handler(commands=['start'])
+def send_id(message):
+    user_id = message.from_user.id
+    bot.reply_to(message, f"Welcome! Your Telegram ID is: {user_id}")
 
 # Telegram webhook route
 @app.route(f"/{API_TOKEN}", methods=['POST'])
@@ -32,11 +22,6 @@ def telegram_webhook():
     update = telebot.types.Update.de_json(json_str)
     bot.process_new_updates([update])
     return "OK", 200
-
-# Command handler
-@bot.message_handler(commands=['price'])
-def send_price(message):
-    bot.reply_to(message, get_ton_price())
 
 # Set webhook
 @app.route("/")
