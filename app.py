@@ -1,54 +1,79 @@
 import os
-import requests
+import telebot
 from flask import Flask, request
+import requests
+import yt_dlp
 
-# =========================
-# CONFIG
-# =========================
-TOKEN = "8034673353:AAGPFeh1cXlWllpQGDKJpBUUv1baBaAekxw"
-APP_URL = "https://new-rpeo.onrender.com"
-TELEGRAM_API = f"https://api.telegram.org/bot{TOKEN}"
+# === CONFIG ===
+TOKEN = "8261351761:AAES_aRQ50v4SqUuAkkbqcRT9612Ngm_vLg"
+APP_URL = "https://new-rpeo.onrender.com" + TOKEN
 
+bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
 
-# =========================
-# ROUTES
-# =========================
-@app.route("/", methods=["GET"])
-def home():
-    return "🤖 InstaBot is running on Render!"
+# === ROUTES ===
+@app.route('/' + TOKEN, methods=['POST'])
+def get_message():
+    json_str = request.get_data().decode('UTF-8')
+    update = telebot.types.Update.de_json(json_str)
+    bot.process_new_updates([update])
+    return "!", 200
 
-@app.route(f"/webhook/{TOKEN}", methods=["POST"])
+@app.route('/')
 def webhook():
-    update = request.get_json()
-    print("📩 Incoming update:", update)
+    return "🤖 InstaBot is live on Render!", 200
 
-    if "message" in update:
-        chat_id = update["message"]["chat"]["id"]
-        text = update["message"].get("text", "")
+# === HANDLERS ===
+@bot.message_handler(commands=['start'])
+def start(message):
+    bot.reply_to(message, "👋 Hello! Send me any Instagram or TikTok link and I’ll download it for you.")
 
-        if text.startswith("http"):
-            requests.post(
-                f"{TELEGRAM_API}/sendMessage",
-                json={"chat_id": chat_id, "text": f"✅ Got your link: {text}"}
-            )
-        else:
-            requests.post(
-                f"{TELEGRAM_API}/sendMessage",
-                json={"chat_id": chat_id, "text": "❌ Please send me a valid link."}
-            )
+@bot.message_handler(func=lambda message: True)
+def download_video(message):
+    url = message.text.strip()
 
-    return {"ok": True}
+    if not (url.startswith("http://") or url.startswith("https://")):
+        bot.reply_to(message, "⚠️ Please send a valid Instagram or TikTok link.")
+        return
 
-# =========================
-# MAIN
-# =========================
+    msg = bot.reply_to(message, "⏳ Downloading... Please wait.")
+
+    try:
+        # yt-dlp options
+        ydl_opts = {
+            "format": "mp4",
+            "outtmpl": "video.%(ext)s",
+        }
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            file_path = ydl.prepare_filename(info)
+
+        # send video
+        with open(file_path, "rb") as f:
+            bot.send_video(message.chat.id, f, caption="✅ Here’s your video!")
+
+        os.remove(file_path)
+
+        bot.delete_message(message.chat.id, msg.message_id)
+
+    except Exception as e:
+        bot.edit_message_text(f"❌ Error: {str(e)}", message.chat.id, msg.message_id)
+
+
+# === AUTO WEBHOOK SETUP ===
 if __name__ == "__main__":
-    print("🚀 Starting bot in WEBHOOK mode...")
+    # Remove old webhook (if exists)
+    requests.get(f"https://api.telegram.org/bot{TOKEN}/deleteWebhook")
 
-    # Auto-set the webhook
-    webhook_url = f"{APP_URL}/webhook/{TOKEN}"
-    r = requests.get(f"{TELEGRAM_API}/setWebhook", params={"url": webhook_url})
-    print("🔗 Webhook setup:", r.json())
+    # Set new webhook
+    set_hook = requests.get(
+        f"https://api.telegram.org/bot{TOKEN}/setWebhook?url={APP_URL}"
+    )
 
-    app.run(host="0.0.0.0", port=5000)
+    if set_hook.status_code == 200:
+        print("✅ Webhook set successfully!")
+    else:
+        print("❌ Webhook setup failed:", set_hook.text)
+
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
