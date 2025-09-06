@@ -11,11 +11,11 @@ app = Flask(__name__)
 
 def get_ton_price():
     try:
-        url = "https://api.binance.com/api/v3/ticker/price?symbol=TONUSDT"
+        url = "https://api.bybit.com/v5/market/tickers?category=spot&symbol=TONUSDT"
         r = requests.get(url, timeout=10)
         r.raise_for_status()
         data = r.json()
-        price = float(data["price"])
+        price = float(data["result"]["list"][0]["lastPrice"])
         return f"💎 TON price: ${price:.2f}"
     except Exception as e:
         return f"⚠️ Error fetching price: {e}"
