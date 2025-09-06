@@ -1,12 +1,13 @@
-import os
-import requests
-import telebot
+# app.py
 from flask import Flask, request
+import telebot
+import requests
+import os
 
-TOKEN = os.getenv("BOT_TOKEN", "8261351761:AAES_aRQ50v4SqUuAkkbqcRT9612Ngm_vLg")
-CHANNEL_ID = os.getenv("CHANNEL_ID", "-1002654232777")  # replace with your channel id
+API_TOKEN = "8261351761:AAES_aRQ50v4SqUuAkkbqcRT9612Ngm_vLg"
+bot = telebot.TeleBot(API_TOKEN)
+WEBHOOK_URL = "https://new-rpeo.onrender.com/"  # your Render URL
 
-bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
 
 def get_ton_price():
@@ -20,34 +21,25 @@ def get_ton_price():
     except Exception as e:
         return f"⚠️ Error fetching price: {e}"
 
-@app.route(f"/{TOKEN}", methods=["POST"])
-def webhook():
-    update = request.get_data().decode("utf-8")
-    bot.process_new_updates([telebot.types.Update.de_json(update)])
-    return "!", 200
+# Telegram webhook route
+@app.route(f"/{API_TOKEN}", methods=['POST'])
+def telegram_webhook():
+    json_str = request.get_data().decode('utf-8')
+    update = telebot.types.Update.de_json(json_str)
+    bot.process_new_updates([update])
+    return "OK", 200
 
+# Command handler
+@bot.message_handler(commands=['price'])
+def send_price(message):
+    bot.reply_to(message, get_ton_price())
+
+# Set webhook
 @app.route("/")
-def index():
-    return "🤖 TON Price Bot running!", 200
-
-# send price every minute
-import schedule, time, threading
-
-def send_price():
-    msg = get_ton_price()
-    try:
-        bot.send_message(CHANNEL_ID, msg)
-    except Exception as e:
-        print(f"Send error: {e}")
-
-def scheduler():
-    schedule.every(1).minutes.do(send_price)
-    while True:
-        schedule.run_pending()
-        time.sleep(1)
+def set_webhook():
+    bot.remove_webhook()
+    bot.set_webhook(url=WEBHOOK_URL + API_TOKEN)
+    return "Webhook set!"
 
 if __name__ == "__main__":
-    threading.Thread(target=scheduler, daemon=True).start()
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)))
-
-
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
