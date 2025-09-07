@@ -5,18 +5,20 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
 # === CONFIG ===
-BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "8261351761:AAES_aRQ50v4SqUuAkkbqcRT9612Ngm_vLg")  
-WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "https://new-rpeo.onrender.com")  # set this on Render
+BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "8261351761:AAES_aRQ50v4SqUuAkkbqcRT9612Ngm_vLg")
+WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "https://new-rpeo.onrender.com")  # e.g. https://your-app.onrender.com
 
 if not BOT_TOKEN or ":" not in BOT_TOKEN:
-    raise SystemExit("❌ TELEGRAM_BOT_TOKEN is missing or invalid.")
+    raise SystemExit("❌ TELEGRAM_BOT_TOKEN is missing or invalid. Set it in Render!")
 
 # logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# fastapi app
+# FastAPI app
 app = FastAPI()
+
+# Telegram app
 tg_app = Application.builder().token(BOT_TOKEN).build()
 
 # === Handlers ===
@@ -38,9 +40,7 @@ async def webhook(request: Request):
 async def startup():
     await tg_app.bot.delete_webhook()
     if not WEBHOOK_URL:
-        logger.error("⚠️ WEBHOOK_URL not set. Please set it on Render.")
+        logger.error("⚠️ WEBHOOK_URL is not set. Please set it in Render.")
         return
     await tg_app.bot.set_webhook(WEBHOOK_URL + "/webhook")
     logger.info(f"✅ Webhook set to {WEBHOOK_URL}/webhook")
-
-
