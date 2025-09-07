@@ -1,40 +1,46 @@
-# app.py
 import os
-from flask import Flask, request
-import telebot
+import logging
+from fastapi import FastAPI, Request
+from telegram import Update
+from telegram.ext import Application, CommandHandler, ContextTypes
 
-API_TOKEN = "8261351761:AAES_aRQ50v4SqUuAkkbqcRT9612Ngm_vLg"
-WEBHOOK_URL = f"https://new-rpeo.onrender.com/{API_TOKEN}"
+# === CONFIG ===
+BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "8261351761:AAES_aRQ50v4SqUuAkkbqcRT9612Ngm_vLg")  
+WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "")  # set this on Render
 
-bot = telebot.TeleBot(API_TOKEN)
-app = Flask(__name__)
+if not BOT_TOKEN or ":" not in BOT_TOKEN:
+    raise SystemExit("❌ TELEGRAM_BOT_TOKEN is missing or invalid.")
 
-# Reply to /start
-@bot.message_handler(commands=['start'])
-def start_message(message):
-    bot.send_message(message.chat.id, "Hello! This is your support bot.")
+# logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# Catch all other messages
-@bot.message_handler(func=lambda m: True)
-def all_messages(message):
-    bot.send_message(message.chat.id, "Thanks for your message. We'll get back to you soon!")
+# fastapi app
+app = FastAPI()
+tg_app = Application.builder().token(BOT_TOKEN).build()
 
-# Webhook route
-@app.route(f"/{API_TOKEN}", methods=['POST'])
-def webhook():
-    json_str = request.get_data().decode('utf-8')
-    update = telebot.types.Update.de_json(json_str)
-    bot.process_new_updates([update])
-    return "OK", 200
+# === Handlers ===
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("👋 Hello! I’m alive via webhook on Render ✅")
 
-# Root route to set webhook
-@app.route("/")
-def set_webhook():
-    bot.remove_webhook()
-    bot.set_webhook(url=WEBHOOK_URL)
-    return f"Webhook set to {WEBHOOK_URL}"
+tg_app.add_handler(CommandHandler("start", start))
 
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+# === Webhook endpoint ===
+@app.post("/webhook")
+async def webhook(request: Request):
+    data = await request.json()
+    update = Update.de_json(data, tg_app.bot)
+    await tg_app.process_update(update)
+    return {"ok": True}
+
+# === Startup: set webhook ===
+@app.on_event("startup")
+async def startup():
+    await tg_app.bot.delete_webhook()
+    if not WEBHOOK_URL:
+        logger.error("⚠️ WEBHOOK_URL not set. Please set it on Render.")
+        return
+    await tg_app.bot.set_webhook(WEBHOOK_URL + "/webhook")
+    logger.info(f"✅ Webhook set to {WEBHOOK_URL}/webhook")
+
 
