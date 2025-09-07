@@ -4,7 +4,7 @@ services:
     env: python
     plan: free
     buildCommand: pip install -r requirements.txt
-   startCommand: gunicorn bot:app -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT
+    startCommand: gunicorn app:app -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT
     envVars:
       - key: TELEGRAM_BOT_TOKEN
         sync: false
