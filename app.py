@@ -6,7 +6,7 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 
 # === CONFIG ===
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "8261351761:AAES_aRQ50v4SqUuAkkbqcRT9612Ngm_vLg")  
-WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "")  # set this on Render
+WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "https://new-rpeo.onrender.com")  # set this on Render
 
 if not BOT_TOKEN or ":" not in BOT_TOKEN:
     raise SystemExit("❌ TELEGRAM_BOT_TOKEN is missing or invalid.")
